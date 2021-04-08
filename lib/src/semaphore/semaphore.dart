@@ -3,7 +3,7 @@ part of '../../semaphore.dart';
 /// Global semaphore is a named semaphore with max count of permits equals to 1.
 class GlobalSemaphore extends Semaphore {
   static final Map<String, GlobalSemaphore> _semaphores =
-  <String, GlobalSemaphore>{};
+      <String, GlobalSemaphore>{};
 
   factory GlobalSemaphore([String? name]) {
     var semaphore = _semaphores[name];

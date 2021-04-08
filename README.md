@@ -2,7 +2,7 @@
 
 Semaphore is lightweight data type that is used for controlling the cooperative access to a common resource inside the isolate.
 
-Version: 0.1.4
+Version: 0.2.0
 
 ### Examples:
 
