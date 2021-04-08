@@ -3,19 +3,19 @@ part of '../../semaphore.dart';
 /// Global semaphore is a named semaphore with max count of permits equals to 1.
 class GlobalSemaphore extends Semaphore {
   static final Map<String, GlobalSemaphore> _semaphores =
-      <String, GlobalSemaphore>{};
+  <String, GlobalSemaphore>{};
 
-  factory GlobalSemaphore([String name]) {
+  factory GlobalSemaphore([String? name]) {
     var semaphore = _semaphores[name];
     if (semaphore == null) {
       semaphore = GlobalSemaphore._internal(name);
-      _semaphores[name] = semaphore;
+      _semaphores[name!] = semaphore;
     }
 
     return semaphore;
   }
 
-  GlobalSemaphore._internal(String name) : super._internal(1, name);
+  GlobalSemaphore._internal(String? name) : super._internal(1, name);
 }
 
 /// Local semaphore is a unnamed semaphore with a specified count of max
@@ -27,7 +27,7 @@ class LocalSemaphore extends Semaphore {
 abstract class Semaphore {
   final int maxCount;
 
-  final String name;
+  final String? name;
 
   int _currentCount = 0;
 

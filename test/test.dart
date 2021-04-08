@@ -80,7 +80,7 @@ void main() {
   });
 
   test('Local semaphore max count', () async {
-    final list1 = <Future>[];
+    final list1 = <Future?>[];
     final maxCount = 3;
     Future action(List list, int milliseconds) {
       expect(list.length <= maxCount, true, reason: 'Not exlusive start');

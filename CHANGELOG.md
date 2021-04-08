@@ -1,3 +1,7 @@
+## 0.2.0
+
+- Migrated to dart 2.13 with null safety
+
 ## 0.1.4
 
 - Added support for conditional variables

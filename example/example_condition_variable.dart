@@ -43,7 +43,7 @@ Future<void> _producer(String id) async {
 
 Future<void> _consumer(String id) async {
   while (true) {
-    int number;
+    late int number;
     await lock(_lock, () async {
       while (_queue.isEmpty) {
         print('consumer $id: wait $_queue');
