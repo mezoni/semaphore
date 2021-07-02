@@ -1,3 +1,7 @@
+## 0.2.1
+
+- This package is no longer supported because it was flagged by Google Dart developers as being published by an unknown person. Publisher Unknown. As a normal person, I believe that hardly anyone would want to use software from unknown publishers.
+
 ## 0.2.0
 
 - Migrated to dart 2.13 with null safety
