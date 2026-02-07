@@ -1,3 +1,7 @@
+## 1.0.1
+
+- Changes have been made to the example of using the conditional variables (`ConditionVariable`).
+
 ## 1.0.0
 
 - The version is compatible with Google Dart SDK 3.0.

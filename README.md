@@ -1,8 +1,8 @@
 # semaphore
 
-Version: 1.0.0
+Version: 1.0.1
 
-Semaphore is lightweight data type that is used for controlling the cooperative access to a common resource inside the isolate.
+Lightweight implementation of a semaphore, a condition variable, and a lock that can be used to control (synchronize) access to a shared resources within an isolate.
 
 ## Examples
 
@@ -84,38 +84,41 @@ import 'package:semaphore/condition_variable.dart';
 import 'package:semaphore/lock.dart';
 
 Future<void> main() async {
+  _sw.start();
   await Future.wait([
-    _producer('one'),
-    _producer('two'),
-    _consumer('one'),
-    _consumer('two'),
-    _consumer('three'),
+    _producer('1'),
+    _producer('2'),
+    _consumer('1'),
+    _consumer('2'),
+    _consumer('3'),
   ]);
 }
 
-var counter = 0;
-final _cvEmpty = ConditionVariable(_lock);
-final _cvFull = ConditionVariable(_lock);
+var _bufferSize = 2;
+var _itemId = 0;
+final _items = Queue<int>();
 final _lock = Lock();
-final _queue = Queue<int>();
+final _notEmpty = ConditionVariable(_lock);
+final _notFull = ConditionVariable(_lock);
+final _sw = Stopwatch();
 
 Future<void> _consumer(String id) async {
   while (true) {
-    late int result;
+    late int item;
     await lock(_lock, () async {
-      while (_queue.isEmpty) {
-        print('consumer $id: wait, queue $_queue');
-        await _cvEmpty.wait();
+      while (_items.isEmpty) {
+        _print('Consumer ($id) is waiting for the item');
+        await _notEmpty.wait();
       }
 
-      print('consumer $id: queue $_queue');
-      result = _queue.removeFirst();
-      await _cvFull.signal();
+      item = _items.removeFirst();
+      _print('Consumer ($id) receives an item ($item)');
+      await _notFull.signal();
     });
 
-    print('consumer $id: doWork');
-    await _doWork(1000);
-    print('consumer $id: work done, result $result');
+    _print('Consumer ($id) start consuming an item ($item)');
+    await _doWork(3000);
+    _print('Consumer ($id) finished consuming an item ($item)');
   }
 }
 
@@ -124,73 +127,86 @@ Future<void> _doWork(int max) async {
   await Future<void>.delayed(Duration(milliseconds: milliseconds));
 }
 
+void _print(String message) {
+  final elapsed = _sw.elapsedMilliseconds / 1000;
+  print('$message, items ($_items) [$elapsed]');
+}
+
 Future<void> _producer(String id) async {
   while (true) {
+    _print('Producer ($id) begin producing the item');
+    await _doWork(1000);
+    _print('Producer ($id) finished producing the item');
     await lock(_lock, () async {
-      while (_queue.length >= 2) {
-        print('producer $id: wait, queue $_queue');
-        await _cvFull.wait();
+      while (_items.length == _bufferSize) {
+        _print('Producer ($id) is waiting for free slot');
+        await _notFull.wait();
       }
 
-      print('producer $id: doWork');
-      await _doWork(1000);
-      _queue.add(counter++);
-      print('producer $id: queue $_queue');
-      await _cvEmpty.signal();
+      final item = _itemId++;
+      _items.add(item);
+      _print('Producer ($id) sent the item ($item)');
+      await _notEmpty.signal();
     });
   }
 }
+
 ```
 
 **Output:**
 
 ```txt
-producer one: doWork
-producer one: queue {0}
-producer two: doWork
-producer two: queue {0, 1}
-consumer one: queue {0, 1}
-consumer one: doWork
-consumer two: queue {1}
-consumer two: doWork
-consumer three: wait, queue {}
-producer one: doWork
-consumer one: work done, result 0
-producer one: queue {2}
-producer two: doWork
-consumer two: work done, result 1
-producer two: queue {2, 3}
-consumer one: queue {2, 3}
-consumer one: doWork
-consumer three: queue {3}
-consumer three: doWork
-producer one: doWork
-consumer one: work done, result 2
-producer one: queue {4}
-consumer two: queue {4}
-consumer two: doWork
-producer two: doWork
-consumer three: work done, result 3
-consumer two: work done, result 4
-producer two: queue {5}
-consumer one: queue {5}
-consumer one: doWork
-producer one: doWork
-consumer one: work done, result 5
-producer one: queue {6}
-consumer three: queue {6}
-consumer three: doWork
-consumer two: wait, queue {}
-producer two: doWork
-producer two: queue {7}
-consumer one: queue {7}
-consumer one: doWork
-producer one: doWork
-consumer three: work done, result 6
-producer one: queue {8}
-consumer two: queue {8}
-consumer two: doWork
-producer two: doWork
-consumer two: work done, result 8
-consumer one: work done, result 7
+Producer (1) begin producing the item, items ({}) [0.001]
+Producer (2) begin producing the item, items ({}) [0.022]
+Consumer (1) is waiting for the item, items ({}) [0.038]
+Consumer (2) is waiting for the item, items ({}) [0.039]
+Consumer (3) is waiting for the item, items ({}) [0.039]
+Producer (2) finished producing the item, items ({}) [0.406]
+Producer (2) sent the item (0), items ({0}) [0.408]
+Producer (2) begin producing the item, items ({0}) [0.41]
+Consumer (1) receives an item (0), items ({}) [0.41]
+Consumer (1) start consuming an item (0), items ({}) [0.411]
+Producer (2) finished producing the item, items ({}) [0.42]
+Producer (2) sent the item (1), items ({1}) [0.42]
+Producer (2) begin producing the item, items ({1}) [0.42]
+Consumer (2) receives an item (1), items ({}) [0.42]
+Consumer (2) start consuming an item (1), items ({}) [0.421]
+Producer (1) finished producing the item, items ({}) [0.443]
+Producer (1) sent the item (2), items ({2}) [0.444]
+Producer (1) begin producing the item, items ({2}) [0.444]
+Consumer (3) receives an item (2), items ({}) [0.444]
+Consumer (3) start consuming an item (2), items ({}) [0.444]
+Producer (1) finished producing the item, items ({}) [0.566]
+Producer (1) sent the item (3), items ({3}) [0.566]
+Producer (1) begin producing the item, items ({3}) [0.566]
+Producer (2) finished producing the item, items ({3}) [0.596]
+Producer (2) sent the item (4), items ({3, 4}) [0.596]
+Producer (2) begin producing the item, items ({3, 4}) [0.596]
+Consumer (3) finished consuming an item (2), items ({3, 4}) [0.72]
+Consumer (3) receives an item (3), items ({4}) [0.72]
+Consumer (3) start consuming an item (3), items ({4}) [0.72]
+Producer (2) finished producing the item, items ({4}) [0.733]
+Producer (2) sent the item (5), items ({4, 5}) [0.734]
+Producer (2) begin producing the item, items ({4, 5}) [0.734]
+Producer (2) finished producing the item, items ({4, 5}) [1.346]
+Producer (2) is waiting for free slot, items ({4, 5}) [1.347]
+Producer (1) finished producing the item, items ({4, 5}) [1.55]
+Producer (1) is waiting for free slot, items ({4, 5}) [1.551]
+Consumer (2) finished consuming an item (1), items ({4, 5}) [2.561]
+Consumer (2) receives an item (4), items ({5}) [2.562]
+Consumer (2) start consuming an item (4), items ({5}) [2.562]
+Producer (2) sent the item (6), items ({5, 6}) [2.562]
+Producer (2) begin producing the item, items ({5, 6}) [2.562]
+Producer (2) finished producing the item, items ({5, 6}) [3.3]
+Producer (2) is waiting for free slot, items ({5, 6}) [3.3]
+Consumer (1) finished consuming an item (0), items ({5, 6}) [3.337]
+Consumer (1) receives an item (5), items ({6}) [3.337]
+Consumer (1) start consuming an item (5), items ({6}) [3.337]
+Producer (1) sent the item (7), items ({6, 7}) [3.338]
+Producer (1) begin producing the item, items ({6, 7}) [3.338]
+Consumer (3) finished consuming an item (3), items ({6, 7}) [3.575]
+Consumer (3) receives an item (6), items ({7}) [3.575]
+Consumer (3) start consuming an item (6), items ({7}) [3.575]
+Producer (2) sent the item (8), items ({7, 8}) [3.576]
+Producer (2) begin producing the item, items ({7, 8}) [3.576]
 ```

@@ -1,6 +1,6 @@
 name: semaphore
 version: 1.0.0
-description: Semaphore is lightweight data type that is used for controlling the cooperative access to a common resource inside the isolate.
+description: Lightweight implementation of a semaphore, a condition variable, and a lock that can be used to control (synchronize) access to a shared resources within an isolate.
 repository: https://github.com/mezoni/semaphore
 environment:
   sdk: '>=3.0.0 <4.0.0'

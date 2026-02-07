@@ -6,38 +6,41 @@ import 'package:semaphore/condition_variable.dart';
 import 'package:semaphore/lock.dart';
 
 Future<void> main() async {
+  _sw.start();
   await Future.wait([
-    _producer('one'),
-    _producer('two'),
-    _consumer('one'),
-    _consumer('two'),
-    _consumer('three'),
+    _producer('1'),
+    _producer('2'),
+    _consumer('1'),
+    _consumer('2'),
+    _consumer('3'),
   ]);
 }
 
-var counter = 0;
-final _cvEmpty = ConditionVariable(_lock);
-final _cvFull = ConditionVariable(_lock);
+var _bufferSize = 2;
+var _itemId = 0;
+final _items = Queue<int>();
 final _lock = Lock();
-final _queue = Queue<int>();
+final _notEmpty = ConditionVariable(_lock);
+final _notFull = ConditionVariable(_lock);
+final _sw = Stopwatch();
 
 Future<void> _consumer(String id) async {
   while (true) {
-    late int result;
+    late int item;
     await lock(_lock, () async {
-      while (_queue.isEmpty) {
-        print('consumer $id: wait, queue $_queue');
-        await _cvEmpty.wait();
+      while (_items.isEmpty) {
+        _print('Consumer ($id) is waiting for the item');
+        await _notEmpty.wait();
       }
 
-      print('consumer $id: queue $_queue');
-      result = _queue.removeFirst();
-      await _cvFull.signal();
+      item = _items.removeFirst();
+      _print('Consumer ($id) receives an item ($item)');
+      await _notFull.signal();
     });
 
-    print('consumer $id: doWork');
-    await _doWork(1000);
-    print('consumer $id: work done, result $result');
+    _print('Consumer ($id) start consuming an item ($item)');
+    await _doWork(3000);
+    _print('Consumer ($id) finished consuming an item ($item)');
   }
 }
 
@@ -46,19 +49,26 @@ Future<void> _doWork(int max) async {
   await Future<void>.delayed(Duration(milliseconds: milliseconds));
 }
 
+void _print(String message) {
+  final elapsed = _sw.elapsedMilliseconds / 1000;
+  print('$message, items ($_items) [$elapsed]');
+}
+
 Future<void> _producer(String id) async {
   while (true) {
+    _print('Producer ($id) begin producing the item');
+    await _doWork(1000);
+    _print('Producer ($id) finished producing the item');
     await lock(_lock, () async {
-      while (_queue.length >= 2) {
-        print('producer $id: wait, queue $_queue');
-        await _cvFull.wait();
+      while (_items.length == _bufferSize) {
+        _print('Producer ($id) is waiting for free slot');
+        await _notFull.wait();
       }
 
-      print('producer $id: doWork');
-      await _doWork(1000);
-      _queue.add(counter++);
-      print('producer $id: queue $_queue');
-      await _cvEmpty.signal();
+      final item = _itemId++;
+      _items.add(item);
+      _print('Producer ($id) sent the item ($item)');
+      await _notEmpty.signal();
     });
   }
 }
